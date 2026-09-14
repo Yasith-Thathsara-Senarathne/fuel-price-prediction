@@ -1,4 +1,4 @@
-import type { FuelType } from "@/generated/prisma/client";
+import type { FuelType, PriceSource } from "@/generated/prisma/client";
 
 export const TRACKED_FUEL_TYPES: FuelType[] = [
   "PETROL_92",
@@ -13,4 +13,9 @@ export const FUEL_TYPE_LABELS: Record<FuelType, string> = {
   AUTO_DIESEL: "Auto Diesel",
   SUPER_DIESEL: "Super Diesel",
   KEROSENE: "Kerosene",
+};
+
+export const PRICE_SOURCE_LABELS: Record<PriceSource, string> = {
+  CPC: "CPC",
+  LANKA_IOC: "Lanka IOC",
 };

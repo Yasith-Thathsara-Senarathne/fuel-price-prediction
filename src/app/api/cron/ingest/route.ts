@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scrapeLankaIocPrices } from "@/lib/scrapers/lankaIoc";
 import { scrapeCbslExchangeRates } from "@/lib/scrapers/cbsl";
-import { fetchBrentPrices } from "@/lib/scrapers/crudeOil";
+import { scrapeBrentPrices, scrapeWtiPrices } from "@/lib/scrapers/crudeOil";
+import type { CrudeBenchmark } from "@/generated/prisma/client";
 import { scrapeCpcPrices } from "@/lib/scrapers/cpc";
 
 export const dynamic = "force-dynamic";
@@ -62,17 +63,20 @@ async function ingestCbsl() {
   return rates.length;
 }
 
-async function ingestCrudeOil() {
+async function ingestCrudeOil(
+  benchmark: CrudeBenchmark,
+  scrape: (since: Date) => Promise<{ date: Date; benchmark: CrudeBenchmark; pricePerBarrel: number }[]>
+) {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const prices = await fetchBrentPrices(since);
+  const prices = await scrape(since);
   for (const p of prices) {
     await prisma.crudeOilPrice.upsert({
-      where: { date_benchmark: { date: p.date, benchmark: "BRENT" } },
+      where: { date_benchmark: { date: p.date, benchmark } },
       create: {
         date: p.date,
-        benchmark: "BRENT",
+        benchmark,
         pricePerBarrel: p.pricePerBarrel,
         source: "EIA",
       },
@@ -99,7 +103,8 @@ export async function GET(request: NextRequest) {
   const results = await Promise.all([
     runSource("LANKA_IOC", ingestLankaIoc),
     runSource("CBSL", ingestCbsl),
-    runSource("EIA", ingestCrudeOil),
+    runSource("EIA_BRENT", () => ingestCrudeOil("BRENT", scrapeBrentPrices)),
+    runSource("EIA_WTI", () => ingestCrudeOil("WTI", scrapeWtiPrices)),
     runSource("CPC", ingestCpc),
   ]);
 

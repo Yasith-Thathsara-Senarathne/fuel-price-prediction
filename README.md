@@ -17,9 +17,9 @@ formula, so this is a best-effort approximation, not an official source.
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill in `DATABASE_URL` (any Postgres
-   host — Neon, Supabase, or local), `EIA_API_KEY` (free, from
-   [eia.gov/opendata](https://www.eia.gov/opendata/register.php)), and
-   `CRON_SECRET` (any random string, used to authorize the ingestion route).
+   host — Neon, Supabase, or local) and `CRON_SECRET` (any random string,
+   used to authorize the ingestion route). No API keys are needed — every
+   data source is scraped from a free public page.
 
 2. Install dependencies and generate the Prisma client:
 
@@ -52,7 +52,7 @@ formula, so this is a best-effort approximation, not an official source.
 | Retail prices | [lankaioc.com/our-product](https://www.lankaioc.com/our-product/) | Working, scraped |
 | Retail prices | ceypetco.gov.lk (CPC) | **Unreliable** — the site frequently times out; the scraper (`src/lib/scrapers/cpc.ts`) is a stub. Enter CPC prices manually if needed. |
 | USD/LKR exchange rate | CBSL's legacy lookup tool | Working, scraped (undocumented endpoint — see `src/lib/scrapers/cbsl.ts`) |
-| Crude oil price | [EIA Open Data API](https://www.eia.gov/opendata/) (Brent, series `RBRTE`) | Working — a proxy for the Singapore Platts benchmark CPC actually uses |
+| Crude oil price (Brent, WTI) | EIA's free public data pages ([Brent](https://www.eia.gov/dnav/pet/hist/RBRTED.htm), [WTI](https://www.eia.gov/dnav/pet/hist/RWTCD.htm)) | Working, scraped (no API key) — Brent is the proxy used in predictions; WTI is stored for reference. Neither is the Singapore Platts benchmark CPC actually uses. |
 
 Every ingestion run is logged to the `IngestionLog` table so scraper failures
 are visible rather than silent.

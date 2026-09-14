@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { calculateFormulaPrice } from "@/lib/formula";
-import { fitLinearTrend, projectTrend, type TimeSeriesPoint } from "@/lib/trend";
-import type { CrudeOilPrice, ExchangeRate, FuelType } from "@/generated/prisma/client";
+import { calculateFormulaPrice, type FormulaBreakdown } from "@/lib/formula";
+import { fitLinearTrend, projectTrend, type LinearTrend, type TimeSeriesPoint } from "@/lib/trend";
+import type { CrudeOilPrice, ExchangeRate, FormulaConfig, FuelType } from "@/generated/prisma/client";
 
 const TREND_WINDOW_DAYS = 21;
 
@@ -23,17 +23,24 @@ export interface PredictionResult {
   basisCrudePrice: number;
   basisExchangeRate: number;
   formulaConfigId: string;
-  breakdown: unknown;
+  breakdown: FormulaBreakdown;
 }
 
-export async function predictFuelPrice(
-  fuelType: FuelType,
-  targetDate: Date
-): Promise<PredictionResult | null> {
+interface TrendBasis {
+  crudeTrend: LinearTrend;
+  rateTrend: LinearTrend;
+}
+
+/**
+ * Crude oil and exchange rate trends don't depend on fuel type, so they're
+ * fetched and fit once and reused across every fuel type and horizon a
+ * caller asks for, instead of once per (fuelType, targetDate) pair.
+ */
+async function getTrendBasis(): Promise<TrendBasis | null> {
   const windowStart = new Date();
   windowStart.setDate(windowStart.getDate() - TREND_WINDOW_DAYS);
 
-  const [crudePrices, exchangeRates, formulaConfig] = await Promise.all([
+  const [crudePrices, exchangeRates] = await Promise.all([
     prisma.crudeOilPrice.findMany({
       where: { benchmark: "BRENT", date: { gte: windowStart } },
       orderBy: { date: "asc" },
@@ -42,17 +49,9 @@ export async function predictFuelPrice(
       where: { date: { gte: windowStart } },
       orderBy: { date: "asc" },
     }),
-    prisma.formulaConfig.findFirst({
-      where: {
-        fuelType,
-        effectiveFrom: { lte: targetDate },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: targetDate } }],
-      },
-      orderBy: { effectiveFrom: "desc" },
-    }),
   ]);
 
-  if (crudePrices.length < 2 || exchangeRates.length < 2 || !formulaConfig) {
+  if (crudePrices.length < 2 || exchangeRates.length < 2) {
     return null;
   }
 
@@ -65,8 +64,19 @@ export async function predictFuelPrice(
     value: Number(r.usdToLkr),
   }));
 
-  const crudeTrend = fitLinearTrend(crudePoints);
-  const rateTrend = fitLinearTrend(ratePoints);
+  return {
+    crudeTrend: fitLinearTrend(crudePoints),
+    rateTrend: fitLinearTrend(ratePoints),
+  };
+}
+
+function predictAtDate(
+  fuelType: FuelType,
+  targetDate: Date,
+  basis: TrendBasis,
+  formulaConfig: FormulaConfig
+): PredictionResult {
+  const { crudeTrend, rateTrend } = basis;
 
   const basisCrudePrice = projectTrend(crudeTrend, targetDate);
   const basisExchangeRate = projectTrend(rateTrend, targetDate);
@@ -101,4 +111,33 @@ export async function predictFuelPrice(
     formulaConfigId: formulaConfig.id,
     breakdown,
   };
+}
+
+/** Predicts one fuel type's price at several target dates in one pass. */
+export async function predictFuelPriceAtDates(
+  fuelType: FuelType,
+  targetDates: Date[]
+): Promise<(PredictionResult | null)[]> {
+  const [basis, formulaConfigs] = await Promise.all([
+    getTrendBasis(),
+    prisma.formulaConfig.findMany({ where: { fuelType }, orderBy: { effectiveFrom: "desc" } }),
+  ]);
+
+  if (!basis) return targetDates.map(() => null);
+
+  return targetDates.map((targetDate) => {
+    const config = formulaConfigs.find(
+      (c: FormulaConfig) =>
+        c.effectiveFrom <= targetDate && (!c.effectiveTo || c.effectiveTo >= targetDate)
+    );
+    return config ? predictAtDate(fuelType, targetDate, basis, config) : null;
+  });
+}
+
+export async function predictFuelPrice(
+  fuelType: FuelType,
+  targetDate: Date
+): Promise<PredictionResult | null> {
+  const [result] = await predictFuelPriceAtDates(fuelType, [targetDate]);
+  return result;
 }

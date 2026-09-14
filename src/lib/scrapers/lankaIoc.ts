@@ -45,7 +45,7 @@ function parseEffectiveDate(text: string): Date | null {
 }
 
 function parsePrice(text: string): number | null {
-  const match = text.replace(/,/g, "").match(/([\d.]+)/);
+  const match = text.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
