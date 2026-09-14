@@ -1,0 +1,125 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FuelType {
+  PETROL_92
+  PETROL_95
+  AUTO_DIESEL
+  SUPER_DIESEL
+  KEROSENE
+}
+
+enum PriceSource {
+  CPC
+  LANKA_IOC
+}
+
+enum CrudeBenchmark {
+  BRENT
+  WTI
+  DUBAI
+}
+
+enum IngestionStatus {
+  SUCCESS
+  FAILURE
+  PARTIAL
+}
+
+// Actual retail prices as announced by CPC / Lanka IOC.
+model FuelPrice {
+  id            String      @id @default(cuid())
+  fuelType      FuelType
+  source        PriceSource
+  pricePerLitre Decimal     @db.Decimal(10, 2)
+  effectiveDate DateTime    @db.Date
+  createdAt     DateTime    @default(now())
+
+  @@unique([fuelType, source, effectiveDate])
+  @@index([fuelType, effectiveDate])
+}
+
+// Daily USD/LKR indicative rate (CBSL).
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  usdToLkr  Decimal  @db.Decimal(10, 4)
+  source    String   @default("CBSL")
+  createdAt DateTime @default(now())
+}
+
+// Daily global crude/refined benchmark price. Brent/WTI are free-API proxies;
+// Sri Lanka's formula actually benchmarks Singapore Platts, which has no free feed.
+model CrudeOilPrice {
+  id             String         @id @default(cuid())
+  date           DateTime       @db.Date
+  benchmark      CrudeBenchmark
+  pricePerBarrel Decimal        @db.Decimal(10, 2)
+  source         String
+  createdAt      DateTime       @default(now())
+
+  @@unique([date, benchmark])
+}
+
+// Versioned, manually-maintained tax/margin constants for the CPC cost-reflective
+// formula. CPC does not publish a clean machine-readable schedule, so these values
+// are best-effort figures sourced from public reporting and must be updated by hand
+// (via the admin UI) whenever policy changes (e.g. VAT/PAL/excise revisions).
+model FormulaConfig {
+  id                         String       @id @default(cuid())
+  fuelType                   FuelType
+  effectiveFrom              DateTime     @db.Date
+  effectiveTo                DateTime?    @db.Date
+  vatRate                    Decimal      @db.Decimal(5, 4)
+  exciseDutyPerLitre         Decimal      @db.Decimal(10, 2)
+  palRate                    Decimal      @db.Decimal(5, 4) @default(0)
+  portHandlingPerLitre       Decimal      @db.Decimal(10, 2)
+  distributionMarginPerLitre Decimal      @db.Decimal(10, 2)
+  dealerMarginPerLitre       Decimal      @db.Decimal(10, 2)
+  freightInsurancePerBarrel  Decimal      @db.Decimal(10, 2)
+  supplierPremiumPerBarrel   Decimal      @db.Decimal(10, 2)
+  notes                      String?
+  source                     String?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  predictions                Prediction[]
+
+  @@index([fuelType, effectiveFrom])
+}
+
+model Prediction {
+  id                String        @id @default(cuid())
+  fuelType          FuelType
+  predictedFor      DateTime      @db.Date
+  predictedPrice    Decimal       @db.Decimal(10, 2)
+  lowerBound        Decimal       @db.Decimal(10, 2)
+  upperBound        Decimal       @db.Decimal(10, 2)
+  basisCrudePrice   Decimal       @db.Decimal(10, 2)
+  basisExchangeRate Decimal       @db.Decimal(10, 4)
+  formulaConfigId   String
+  formulaConfig     FormulaConfig @relation(fields: [formulaConfigId], references: [id])
+  breakdown         Json
+  createdAt         DateTime      @default(now())
+
+  @@index([fuelType, createdAt])
+}
+
+// Observability for scheduled scrapers/ingestion jobs — CPC's site in particular
+// is known to be unstable, so failures need to be visible rather than silent.
+model IngestionLog {
+  id           String           @id @default(cuid())
+  source       String
+  status       IngestionStatus
+  message      String?
+  itemsFetched Int?
+  runAt        DateTime         @default(now())
+
+  @@index([source, runAt])
+}

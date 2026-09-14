@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fuel Price Predictor (Sri Lanka)
 
-## Getting Started
+Tracks Sri Lanka retail fuel prices (Lanka IOC / CPC) and estimates near-term
+prices by approximating CPC's cost-reflective pricing formula, driven by
+trends in global crude oil prices and the USD/LKR exchange rate.
 
-First, run the development server:
+See [`/methodology`](src/app/methodology/page.tsx) for how predictions are
+built and their limitations — CPC has never published an authoritative
+formula, so this is a best-effort approximation, not an official source.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Next.js 16 (App Router) + TypeScript, Tailwind CSS
+- Prisma ORM 7 (driver-adapter mode, `@prisma/adapter-pg`) + PostgreSQL
+- Vercel Cron for scheduled ingestion
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Copy `.env.example` to `.env` and fill in `DATABASE_URL` (any Postgres
+   host — Neon, Supabase, or local), `EIA_API_KEY` (free, from
+   [eia.gov/opendata](https://www.eia.gov/opendata/register.php)), and
+   `CRON_SECRET` (any random string, used to authorize the ingestion route).
 
-## Learn More
+2. Install dependencies and generate the Prisma client:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. Apply the schema and seed the formula config:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm run db:push
+   npm run db:seed
+   ```
 
-## Deploy on Vercel
+4. Run ingestion once manually to populate data (or wait for the cron job
+   in production):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   # in another terminal:
+   curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/ingest
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. Open [http://localhost:3000](http://localhost:3000).
+
+## Data sources
+
+| Data | Source | Reliability |
+|---|---|---|
+| Retail prices | [lankaioc.com/our-product](https://www.lankaioc.com/our-product/) | Working, scraped |
+| Retail prices | ceypetco.gov.lk (CPC) | **Unreliable** — the site frequently times out; the scraper (`src/lib/scrapers/cpc.ts`) is a stub. Enter CPC prices manually if needed. |
+| USD/LKR exchange rate | CBSL's legacy lookup tool | Working, scraped (undocumented endpoint — see `src/lib/scrapers/cbsl.ts`) |
+| Crude oil price | [EIA Open Data API](https://www.eia.gov/opendata/) (Brent, series `RBRTE`) | Working — a proxy for the Singapore Platts benchmark CPC actually uses |
+
+Every ingestion run is logged to the `IngestionLog` table so scraper failures
+are visible rather than silent.
+
+## Formula config
+
+`FormulaConfig` holds versioned tax/margin constants (VAT, excise duty, port
+handling, distribution/dealer margins) per fuel type. These are **not**
+official published figures — see `prisma/seed.ts` for how the seed values
+were back-solved from real observed retail prices. Update them by hand
+(directly in the database, or build an admin UI) whenever tax policy changes.
+
+## Scripts
+
+- `npm run dev` / `build` / `start` — standard Next.js
+- `npm run db:push` — push the Prisma schema to the database (no migration
+  history; use `db:migrate` instead once the schema stabilizes)
+- `npm run db:migrate` — create/apply a versioned migration
+- `npm run db:seed` — seed `FormulaConfig`
+- `npm run db:studio` — Prisma Studio
+
+## Deploying
+
+Deploy to Vercel as a normal Next.js app. `vercel.json` configures a daily
+cron hitting `/api/cron/ingest` — set `CRON_SECRET` as an environment
+variable in the Vercel project so Vercel's cron requests authenticate
+(Vercel automatically sends it as a Bearer token to cron routes).

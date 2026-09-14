@@ -12,10 +12,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Chart tokens (see dataviz skill palette.md — categorical slot 1 / blue) */
+:root {
+  --chart-surface: #ffffff;
+  --chart-text-secondary: #52514e;
+  --chart-grid: #e4e4e7;
+  --chart-series-1: #2a78d6;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --chart-surface: #18181b;
+    --chart-text-secondary: #a1a1aa;
+    --chart-grid: #27272a;
+    --chart-series-1: #3987e5;
   }
 }
 
