@@ -3,6 +3,7 @@ import { getPriceHistory } from "@/lib/currentPrices";
 import { predictFuelPriceAtDates } from "@/lib/prediction";
 import { FUEL_TYPE_LABELS, TRACKED_FUEL_TYPES } from "@/lib/fuelTypes";
 import { FuelCard, type HorizonPrediction } from "@/components/FuelCard";
+import { RunIngestionButton } from "@/components/RunIngestionButton";
 
 export const dynamic = "force-dynamic";
 
@@ -90,19 +91,22 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Sri Lanka Fuel Prices</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
-          Current retail prices with estimates for the next month-end revision (Sri
-          Lanka&apos;s traditional pricing-change point), plus 2-week and 3-month views,
-          based on the trend in global crude oil prices and the USD/LKR exchange rate run
-          through an approximation of CPC&apos;s cost-reflective pricing formula.
-          Predictions are estimates, not official announcements — see the{" "}
-          <Link href="/methodology" className="underline underline-offset-2">
-            methodology
-          </Link>{" "}
-          page for why.
-        </p>
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Sri Lanka Fuel Prices</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            Current retail prices with estimates for the next month-end revision (Sri
+            Lanka&apos;s traditional pricing-change point), plus 2-week and 3-month views,
+            based on the trend in global crude oil prices and the USD/LKR exchange rate run
+            through an approximation of CPC&apos;s cost-reflective pricing formula.
+            Predictions are estimates, not official announcements — see the{" "}
+            <Link href="/methodology" className="underline underline-offset-2">
+              methodology
+            </Link>{" "}
+            page for why.
+          </p>
+        </div>
+        <RunIngestionButton requiresSecret={Boolean(process.env.CRON_SECRET)} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
