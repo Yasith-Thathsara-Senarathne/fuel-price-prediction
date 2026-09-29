@@ -18,7 +18,7 @@ export function TrendBadge({ deltaPct, suffix }: Props) {
   const Icon = direction === "up" ? ArrowUpRight : direction === "down" ? ArrowDownRight : Minus;
 
   return (
-    <span className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${styles}`}>
+    <span className={`flex items-center gap-0.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-medium ${styles}`}>
       <Icon size={12} />
       {Math.abs(deltaPct).toFixed(1)}%{suffix ? ` ${suffix}` : ""}
     </span>

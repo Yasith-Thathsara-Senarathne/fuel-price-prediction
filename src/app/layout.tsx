@@ -32,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <header className="sticky top-0 z-40 border-b border-border-color/70 bg-background/70 backdrop-blur-md">
-            <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+            <nav className="mx-auto flex max-w-[96rem] items-center justify-between px-6 py-4">
               <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-sm"
@@ -54,7 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </div>
             </nav>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-10">{children}</main>
+          <main className="mx-auto w-full max-w-[96rem] flex-1 px-6 py-10">{children}</main>
           <footer className="border-t border-border-color px-6 py-6 text-center text-xs text-muted">
             Estimates only — not affiliated with CPC or Lanka IOC. See the{" "}
             <Link href="/methodology" className="underline underline-offset-2">

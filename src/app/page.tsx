@@ -40,18 +40,34 @@ function horizonDates(): Date[] {
   return [twoWeeks, nextRevisionDate(), threeMonths];
 }
 
+/**
+ * The price that was in effect one month before `date` — i.e. the latest
+ * row effective on or before that point. Comparing against the immediately
+ * preceding row would usually show 0% since consecutive rows often repeat
+ * the same price.
+ */
+function priceOneMonthBefore<T extends { effectiveDate: Date }>(history: T[], date: Date): T | null {
+  const cutoff = new Date(date);
+  cutoff.setMonth(cutoff.getMonth() - 1);
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].effectiveDate <= cutoff) return history[i];
+  }
+  return null;
+}
+
 export default async function DashboardPage() {
   const targetDates = horizonDates();
 
   const cards = await Promise.all(
     TRACKED_FUEL_TYPES.map(async (fuelType) => {
-      const [history, predictions] = await Promise.all([
-        getPriceHistory(fuelType, 14),
+      const [fullHistory, predictions] = await Promise.all([
+        getPriceHistory(fuelType, Infinity),
         predictFuelPriceAtDates(fuelType, targetDates),
       ]);
+      const history = fullHistory.slice(-14);
 
       const current = history[history.length - 1] ?? null;
-      const previous = history.length > 1 ? history[history.length - 2] : null;
+      const previous = current ? priceOneMonthBefore(fullHistory, current.effectiveDate) : null;
 
       const horizons: HorizonPrediction[] = HORIZONS.map((h, i) => {
         const result = predictions[i];

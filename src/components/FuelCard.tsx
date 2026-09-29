@@ -67,7 +67,7 @@ export function FuelCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06, ease: "easeOut" }}
       whileHover={{ y: -3 }}
-      className="group rounded-2xl border border-border-color bg-surface p-7 shadow-sm transition-shadow duration-300 hover:shadow-xl hover:shadow-accent/5"
+      className="group rounded-2xl border border-border-color bg-surface p-6 shadow-sm transition-shadow duration-300 hover:shadow-xl hover:shadow-accent/5"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2.5">
@@ -81,11 +81,11 @@ export function FuelCard({
 
       {currentPrice !== null ? (
         <>
-          <div className="mt-4 flex items-baseline gap-2">
-            <div className="text-4xl font-semibold tabular-nums tracking-tight">
+          <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="whitespace-nowrap text-3xl font-semibold tabular-nums tracking-tight">
               Rs. <AnimatedNumber value={currentPrice} />
             </div>
-            {deltaPct !== null && <TrendBadge deltaPct={deltaPct} />}
+            {deltaPct !== null && <TrendBadge deltaPct={deltaPct} suffix="MoM" />}
           </div>
           <div className="mt-1.5 text-sm text-muted">
             as of {currentDateLabel} · {currentSource}
