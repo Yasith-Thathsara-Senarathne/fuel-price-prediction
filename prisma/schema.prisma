@@ -123,3 +123,10 @@ model IngestionLog {
 
   @@index([source, runAt])
 }
+
+// Site-wide counters (e.g. total page views), keyed by name so more can be
+// added without a schema change.
+model SiteCounter {
+  key   String @id
+  value Int    @default(0)
+}

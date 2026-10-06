@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { runIngestion, type IngestionResult } from "@/lib/ingest";
+import { prisma } from "@/lib/prisma";
 
 export type RunIngestionState =
   | { status: "idle" }
@@ -24,4 +25,22 @@ export async function runIngestionAction(
   const { ranAt, results } = await runIngestion();
   revalidatePath("/", "layout");
   return { status: "done", ranAt, results };
+}
+
+const VIEW_COUNTER_KEY = "views";
+
+/**
+ * Returns the total site view count, incrementing it first when `increment`
+ * is set. The client only increments once per browser session so reloads and
+ * client-side navigations don't inflate the number.
+ */
+export async function recordViewAction(increment: boolean): Promise<number> {
+  const counter = increment
+    ? await prisma.siteCounter.upsert({
+        where: { key: VIEW_COUNTER_KEY },
+        create: { key: VIEW_COUNTER_KEY, value: 1 },
+        update: { value: { increment: 1 } },
+      })
+    : await prisma.siteCounter.findUnique({ where: { key: VIEW_COUNTER_KEY } });
+  return counter?.value ?? 0;
 }

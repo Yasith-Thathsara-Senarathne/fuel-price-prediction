@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NavLink } from "@/components/NavLink";
+import { ViewCount } from "@/components/ViewCount";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,6 +62,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               methodology
             </Link>{" "}
             page for how predictions are calculated and their limitations.
+            <div className="mt-2">
+              <ViewCount />
+            </div>
           </footer>
         </ThemeProvider>
       </body>
